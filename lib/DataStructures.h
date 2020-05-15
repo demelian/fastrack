@@ -55,12 +55,12 @@ public:
     }
   };
 
-Node() : m_h(0), m_type(0), m_inOverlap(false) {
+Node() : m_h(0), m_type(0), m_inOverlap(false), m_index(-1) {
   m_minCutOnPar0 = -100.0;
   m_maxCutOnPar0 = 100.0;
 }
   
-Node(int hitIndex, const HITS* hits, int t) : m_h(hitIndex), m_type(t), m_inOverlap(false) {
+Node(int hitIndex, const HITS* hits, int t) : m_h(hitIndex), m_type(t), m_inOverlap(false), m_index(-1) {
 
   m_hits.push_back(hitIndex);
   m_x = hits->m_x[hitIndex];
@@ -163,7 +163,8 @@ Node(int hitIndex, const HITS* hits, int t) : m_h(hitIndex), m_type(t), m_inOver
 
   int m_nCells, m_nCellsT;
   float m_minCutOnPar0, m_maxCutOnPar0;
-
+  mutable int m_index;
+  
   ~Node() {};
   
 } NODE;
