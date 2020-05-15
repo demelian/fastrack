@@ -146,7 +146,7 @@ void TrackFinder::run(int stage, const HITS* pE, std::vector<NEW_TRACK*>& vTrack
   start = finish;
   
   if(stage == 1) {
-    storeNetwork(m_eventCounter);
+    storeNetwork(m_eventCounter, true);//filter the graph to remove edges that lead nowhere 
   }
   
   runNetworkEvolution();
@@ -831,7 +831,7 @@ void TrackFinder::runNetworkEvolution() {
   }
 }
 
-void TrackFinder::storeNetwork(int eventId) {
+void TrackFinder::storeNetwork(int eventId, bool filterGraph = true) {
 
   std::ostringstream filename1("graph_");
   
@@ -858,7 +858,7 @@ void TrackFinder::storeNetwork(int eventId) {
   for(int bankId=0;bankId<N_SEG_BANKS; bankId++) {
     for(unsigned int segmentIndex=0;segmentIndex<m_segBank[bankId]->m_nSegments;segmentIndex++) {
       SEGMENT* pS = &m_segBank[bankId]->m_S[segmentIndex];
-      if(pS->m_nNei == 0) continue;
+      if(filterGraph && (pS->m_nNei == 0)) continue;
       vSegs.push_back(pS);
 
       const NODE* n1 = pS->m_n1;
