@@ -36,7 +36,7 @@ typedef class TrackFinder {
   
   void createSegments();
   void connectSegments();
-
+  void storeNetwork(int, bool);
   void runNetworkEvolution();
 
   void collectTracks(std::vector<NEW_TRACK*>&);
