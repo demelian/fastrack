@@ -144,7 +144,11 @@ void TrackFinder::run(int stage, const HITS* pE, std::vector<NEW_TRACK*>& vTrack
   finish = std::chrono::high_resolution_clock::now();
   m_time[3] += std::chrono::duration_cast<std::chrono::milliseconds>(finish - start).count();
   start = finish;
-
+  
+  if(stage == 1) {
+    storeNetwork(m_eventCounter);
+  }
+  
   runNetworkEvolution();
   
   finish = std::chrono::high_resolution_clock::now();
@@ -827,6 +831,93 @@ void TrackFinder::runNetworkEvolution() {
   }
 }
 
+void TrackFinder::storeNetwork(int eventId) {
+
+  std::ostringstream filename1("graph_");
+  
+  filename1<<"event_"<<eventId+1<<"_filtered_graph_nodes.csv";
+  
+  std::ofstream gFile(filename1.str());
+
+  std::ostringstream filename2("edges_");
+  
+  filename2<<"event_"<<eventId+1<<"_filtered_graph_edges.csv";
+  
+  std::ofstream eFile(filename2.str());
+
+  std::ostringstream filename3("nodes_to_hits_");
+  
+  filename3<<"event_"<<eventId+1<<"_filtered_graph_nodes_to_hits.csv";
+
+  std::ofstream hFile(filename3.str());
+  
+  std::vector<SEGMENT*> vSegs;
+  std::map<const NODE*, std::vector<const NODE*> > connMap;
+  std::set<const NODE*> nodeSet;
+  
+  for(int bankId=0;bankId<N_SEG_BANKS; bankId++) {
+    for(unsigned int segmentIndex=0;segmentIndex<m_segBank[bankId]->m_nSegments;segmentIndex++) {
+      SEGMENT* pS = &m_segBank[bankId]->m_S[segmentIndex];
+      if(pS->m_nNei == 0) continue;
+      vSegs.push_back(pS);
+
+      const NODE* n1 = pS->m_n1;
+      const NODE* n2 = pS->m_n2;
+      nodeSet.insert(n1);
+      nodeSet.insert(n2);
+
+      std::map<const NODE*, std::vector<const NODE*> >::iterator mIt = connMap.find(n1);
+      if(mIt!=connMap.end()) {
+	(*mIt).second.push_back(n2);
+      }
+      else {
+	std::vector<const NODE*> v;
+	v.push_back(n2);
+	connMap.insert(std::pair<const NODE*, std::vector<const NODE*> >(n1, v));
+      }
+    }
+  }
+
+  int nodeIdx = 0;
+  for(std::set<const NODE*>::iterator nIt=nodeSet.begin();nIt!=nodeSet.end();++nIt, nodeIdx++) {
+    (*nIt)->m_index = nodeIdx;
+  }
+  
+  eFile<<nodeSet.size()<<" "<<vSegs.size()<<std::endl;
+  
+  gFile<<"node_idx,layer_id,x,y,z"<<std::endl;
+  
+  hFile<<"node_idx,hit_id"<<std::endl;
+  
+  eFile<<"node2,node1,weight"<<std::endl;
+  
+  for(std::set<const NODE*>::iterator nIt=nodeSet.begin();nIt!=nodeSet.end();++nIt) {
+    
+    const NODE* n = (*nIt);
+    gFile<<n->m_index<<",";
+    int hitId = n->m_h;
+    int lId = 1000*m_pH->m_vol_id[hitId] + m_pH->m_lay_id[hitId];
+    gFile<<lId<<","<<n->m_x<<","<<n->m_y<<","<<n->m_z<<std::endl;
+
+    for(std::vector<int>::const_iterator hIt=n->m_hits.begin();hIt!=n->m_hits.end();++hIt) {
+      hFile<<n->m_index<<","<<(*hIt)+1<<std::endl;
+    }
+    
+
+    std::map<const NODE*, std::vector<const NODE*> >::iterator mIt = connMap.find(n);
+    if(mIt!=connMap.end()) {
+      std::vector<const NODE*> & v = (*mIt).second;
+      for(std::vector<const NODE*>::iterator eIt = v.begin();eIt != v.end();++eIt) {	
+	const NODE* pN = (*eIt);
+	eFile<<n->m_index<<","<<pN->m_index<<",1.0"<<std::endl;
+      }
+    }
+  }
+
+  gFile.close();
+  eFile.close();
+  hFile.close();
+}
 
 
 void TrackFinder::findClusters() {
