@@ -850,31 +850,55 @@ void TrackFinder::storeNetwork(int eventId, bool filterGraph = true) {
   filename3<<"event_"<<eventId+1<<"_filtered_graph_nodes_to_hits.csv";
 
   std::ofstream hFile(filename3.str());
+
+  std::vector<const SEGMENT*> vSegs;
+
+  if(!filterGraph) {
+    for(int bankId=0;bankId<N_SEG_BANKS; bankId++) {
+      for(unsigned int segmentIndex=0;segmentIndex<m_segBank[bankId]->m_nSegments;segmentIndex++) {
+        const SEGMENT* pS = &m_segBank[bankId]->m_S[segmentIndex];
+        vSegs.push_back(pS);
+      }
+    }
+  } else {
+    std::set<const SEGMENT*> segmentSet;
+    for(int bankId=0;bankId<N_SEG_BANKS; bankId++) {
+      for(unsigned int segmentIndex=0;segmentIndex<m_segBank[bankId]->m_nSegments;segmentIndex++) {
+        const SEGMENT* pS = &m_segBank[bankId]->m_S[segmentIndex];
+        if(pS->m_nNei == 0) continue;
+        segmentSet.insert(pS);
+        for(int nIdx=0;nIdx<pS->m_nNei;nIdx++) {
+          unsigned int segIdx = pS->m_vNei[nIdx];
+          unsigned int nextBankId = (segIdx & SEG_BANK_MASK) >> SEG_MASK_SHIFT;
+          unsigned int nextSegmentIdx = (segIdx & SEG_INDEX_MASK);
+          const SEGMENT* pN = &(m_segBank[nextBankId]->m_S[nextSegmentIdx]);
+          segmentSet.insert(pN);
+        }
+      }
+    }
+    for(const auto& pS : segmentSet) {
+      vSegs.push_back(pS);
+    }
+  }
   
-  std::vector<SEGMENT*> vSegs;
   std::map<const NODE*, std::vector<const NODE*> > connMap;
   std::set<const NODE*> nodeSet;
-  
-  for(int bankId=0;bankId<N_SEG_BANKS; bankId++) {
-    for(unsigned int segmentIndex=0;segmentIndex<m_segBank[bankId]->m_nSegments;segmentIndex++) {
-      SEGMENT* pS = &m_segBank[bankId]->m_S[segmentIndex];
-      if(filterGraph && (pS->m_nNei == 0)) continue;
-      vSegs.push_back(pS);
 
-      const NODE* n1 = pS->m_n1;
-      const NODE* n2 = pS->m_n2;
-      nodeSet.insert(n1);
-      nodeSet.insert(n2);
+  for(const auto& pS : vSegs) {
 
-      std::map<const NODE*, std::vector<const NODE*> >::iterator mIt = connMap.find(n1);
-      if(mIt!=connMap.end()) {
-	(*mIt).second.push_back(n2);
-      }
-      else {
-	std::vector<const NODE*> v;
-	v.push_back(n2);
-	connMap.insert(std::pair<const NODE*, std::vector<const NODE*> >(n1, v));
-      }
+    const NODE* n1 = pS->m_n1;
+    const NODE* n2 = pS->m_n2;
+    nodeSet.insert(n1);
+    nodeSet.insert(n2);
+    
+    std::map<const NODE*, std::vector<const NODE*> >::iterator mIt = connMap.find(n1);
+    if(mIt!=connMap.end()) {
+      (*mIt).second.push_back(n2);
+    }
+    else {
+      std::vector<const NODE*> v;
+      v.push_back(n2);
+      connMap.insert(std::pair<const NODE*, std::vector<const NODE*> >(n1, v));
     }
   }
 
